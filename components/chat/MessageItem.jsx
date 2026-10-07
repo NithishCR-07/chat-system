@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   IconSpinner,
   IconSingleCheck,
@@ -99,7 +99,7 @@ function ImageCard({ msg, isMe, isFailed, onZoom }) {
             }`}
             onLoad={() => setIsLoaded(true)}
             onError={handleImageError}
-            onClick={() => onZoom({ url: imgSrc, name: msg.file_name })}
+            onClick={() => onZoom && onZoom({ url: imgSrc, name: msg.file_name })}
             loading="lazy"
           />
         )}
@@ -109,7 +109,7 @@ function ImageCard({ msg, isMe, isFailed, onZoom }) {
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-3">
             <button
               type="button"
-              onClick={() => onZoom({ url: imgSrc, name: msg.file_name })}
+              onClick={() => onZoom && onZoom({ url: imgSrc, name: msg.file_name })}
               className="w-9 h-9 rounded-full bg-white/90 text-slate-800 hover:bg-white flex items-center justify-center shadow-lg transition-transform active:scale-95 cursor-pointer"
               title="View Fullscreen"
             >
@@ -149,180 +149,126 @@ function ImageCard({ msg, isMe, isFailed, onZoom }) {
 }
 
 /**
- * Dedicated Message Item Component
- * Handles rich rendering, group sender labels, system notices, and delete actions.
+ * 1. System Message Subcomponent
  */
-export function MessageItem({
-  msg,
-  isMe,
-  currentUser,
-  isGroup = false,
-  onZoom,
-  onRetryMessage,
-  onDeleteMessage,
-}) {
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  // 1. Special Handling for SYSTEM Activity Notices
-  if (msg.message_type === 'system') {
-    return (
-      <div className="flex justify-center my-2">
-        <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-slate-200/80 text-slate-600 text-[11px] font-medium shadow-2xs">
-          <IconUsers className="w-3 h-3 text-slate-500" />
-          <span>{msg.content}</span>
-        </div>
+function SystemMessage({ content }) {
+  return (
+    <div className="flex justify-center my-2 select-none">
+      <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-slate-200/80 text-slate-600 text-[11px] font-medium shadow-2xs">
+        <IconUsers className="w-3 h-3 text-slate-500" />
+        <span>{content}</span>
       </div>
-    );
-  }
-
-  const senderName = msg.sender?.full_name || msg.sender?.username || 'Member';
-  const senderInitial = senderName.charAt(0).toUpperCase();
-  const senderColor = getSenderColorClass(msg.sender_id || '');
-  const time = msg.created_at
-    ? new Date(msg.created_at).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '';
-
-  // 2. Special Handling for DELETED Messages (WhatsApp-style Tombstone Notice)
-  const isMessageDeleted = Boolean(
-    msg.is_deleted ||
-    msg.deleted_at ||
-    (msg.status !== 'sending' && !msg.content && !msg.file_url && msg.message_type !== 'system')
+    </div>
   );
+}
 
-  if (isMessageDeleted) {
-    const isDeletedByMe = Boolean(
-      (msg.deleted_by && currentUser?.id && msg.deleted_by === currentUser.id) ||
-      (!msg.deleted_by && isMe)
-    );
+/**
+ * 2. Deleted Message Tombstone Subcomponent
+ */
+function DeletedMessage({
+  isMe,
+  isGroup,
+  senderColor,
+  senderName,
+  senderInitial,
+  senderAvatar,
+  deleterName,
+  isDeletedByMe,
+  time,
+}) {
+  return (
+    <div
+      className={`flex flex-col ${
+        isMe ? 'items-end' : 'items-start'
+      } space-y-1 group relative my-0.5`}
+    >
+      {/* Sender Header for Group Incoming Deleted Messages */}
+      {!isMe && isGroup && (
+        <div className="flex items-center gap-1.5 pl-1 mb-0.5">
+          <span className={`text-[11px] font-bold ${senderColor}`}>
+            {senderName}
+          </span>
+        </div>
+      )}
 
-    const myDisplayName =
-      currentUser?.full_name ||
-      currentUser?.username ||
-      (currentUser?.email ? currentUser.email.split('@')[0] : '') ||
-      'You';
-
-    const otherDeleterName =
-      msg.deleted_by_profile?.full_name ||
-      msg.deleted_by_profile?.username ||
-      (msg.deleted_by_profile?.email ? msg.deleted_by_profile.email.split('@')[0] : '') ||
-      msg.sender?.full_name ||
-      msg.sender?.username ||
-      (msg.sender?.email ? msg.sender.email.split('@')[0] : '') ||
-      senderName;
-
-    const deleterName = isDeletedByMe ? myDisplayName : otherDeleterName;
-
-    return (
       <div
-        className={`flex flex-col ${
-          isMe ? 'items-end' : 'items-start'
-        } space-y-1 group relative my-0.5`}
+        className={`relative flex items-end gap-2 ${
+          isMe ? 'flex-row-reverse' : 'flex-row'
+        }`}
       >
-        {/* Sender Header for Group Incoming Deleted Messages */}
+        {/* Sender Avatar for Group incoming messages */}
         {!isMe && isGroup && (
-          <div className="flex items-center gap-1.5 pl-1 mb-0.5">
-            <span className={`text-[11px] font-bold ${senderColor}`}>
-              {senderName}
-            </span>
+          <div className="w-6 h-6 rounded-lg bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-[10px] shrink-0 mb-1 shadow-2xs overflow-hidden">
+            {senderAvatar ? (
+              <img
+                src={senderAvatar}
+                alt={senderName}
+                className="w-full h-full object-cover rounded-lg"
+              />
+            ) : (
+              senderInitial
+            )}
           </div>
         )}
 
+        {/* Modern Cohesive Deleted Message Tombstone Card */}
         <div
-          className={`relative flex items-end gap-2 ${
-            isMe ? 'flex-row-reverse' : 'flex-row'
+          className={`max-w-md px-3.5 py-2 rounded-2xl shadow-2xs flex items-center gap-2.5 border transition-all select-none ${
+            isMe
+              ? 'bg-slate-100/90 hover:bg-slate-100 text-slate-600 border-slate-200/90 rounded-br-xs'
+              : 'bg-white hover:bg-slate-50/80 text-slate-600 border-slate-200 rounded-bl-xs'
           }`}
         >
-          {/* Sender Avatar for Group incoming messages */}
-          {!isMe && isGroup && (
-            <div className="w-6 h-6 rounded-lg bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-[10px] shrink-0 mb-1 shadow-2xs overflow-hidden">
-              {msg.sender?.avatar_url ? (
-                <img
-                  src={msg.sender.avatar_url}
-                  alt={senderName}
-                  className="w-full h-full object-cover rounded-lg"
-                />
-              ) : (
-                senderInitial
-              )}
-            </div>
-          )}
-
-          {/* Modern Cohesive Deleted Message Tombstone Card */}
           <div
-            className={`max-w-md px-3.5 py-2 rounded-2xl shadow-2xs flex items-center gap-2.5 border transition-all select-none ${
-              isMe
-                ? 'bg-slate-100/90 hover:bg-slate-100 text-slate-600 border-slate-200/90 rounded-br-xs'
-                : 'bg-white hover:bg-slate-50/80 text-slate-600 border-slate-200 rounded-bl-xs'
+            className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 ${
+              isMe ? 'bg-slate-200/80 text-slate-500' : 'bg-slate-100 text-slate-400'
             }`}
           >
-            <div
-              className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 ${
-                isMe ? 'bg-slate-200/80 text-slate-500' : 'bg-slate-100 text-slate-400'
-              }`}
-            >
-              <IconBan className="w-3.5 h-3.5" />
-            </div>
-            <span className="text-xs text-slate-600 font-normal leading-snug">
-              This message was deleted by{' '}
-              <span className="font-semibold text-slate-900">{deleterName}</span>
-              {isDeletedByMe && (
-                <span className="text-[#1f6fb2] font-medium ml-1">(You)</span>
-              )}
-            </span>
-            {time && (
-              <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-2 self-center">
-                {time}
-              </span>
-            )}
+            <IconBan className="w-3.5 h-3.5" />
           </div>
+          <span className="text-xs text-slate-600 font-normal leading-snug">
+            This message was deleted by{' '}
+            <span className="font-semibold text-slate-900">{deleterName}</span>
+            {isDeletedByMe && (
+              <span className="text-[#1f6fb2] font-medium ml-1">(You)</span>
+            )}
+          </span>
+          {time && (
+            <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-2 self-center">
+              {time}
+            </span>
+          )}
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  const isFailed = msg.status === 'failed';
-  const isSending = msg.status === 'sending';
-
-  const isImage =
-    msg.message_type === 'image' ||
-    Boolean(msg.file_url && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(msg.file_name || ''));
-  const isPdf =
-    msg.message_type === 'pdf' ||
-    Boolean(msg.file_url && /\.pdf$/i.test(msg.file_name || ''));
-  const isFile = Boolean(msg.file_url) && !isImage && !isPdf;
-
-  async function handleConfirmDelete() {
-    if (!onDeleteMessage) return;
-    setIsDeleting(true);
-    try {
-      await onDeleteMessage(msg.id);
-    } finally {
-      setIsDeleting(false);
-      setShowConfirmDelete(false);
-    }
-  }
-
-  // Close confirmation popover on mobile/desktop when clicking outside
-  useEffect(() => {
-    if (!showConfirmDelete) return;
-    function handleOutsideClick() {
-      setShowConfirmDelete(false);
-    }
-    const timer = setTimeout(() => {
-      window.addEventListener('click', handleOutsideClick);
-      window.addEventListener('touchend', handleOutsideClick);
-    }, 50);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('click', handleOutsideClick);
-      window.removeEventListener('touchend', handleOutsideClick);
-    };
-  }, [showConfirmDelete]);
-
+/**
+ * 3. Normal Active Message Subcomponent
+ */
+function NormalMessage({
+  msg,
+  isMe,
+  isGroup,
+  senderName,
+  senderInitial,
+  senderColor,
+  senderAvatar,
+  time,
+  isFailed,
+  isSending,
+  isImage,
+  isPdf,
+  isFile,
+  showConfirmDelete,
+  isDeleting,
+  onZoom,
+  onRetryMessage,
+  onDeleteTrigger,
+  onConfirmDelete,
+  onCancelDelete,
+}) {
   return (
     <div
       className={`flex flex-col ${
@@ -346,9 +292,9 @@ export function MessageItem({
         {/* Sender Avatar for Group incoming messages */}
         {!isMe && isGroup && (
           <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#1f6fb2] to-[#2ec4b6] text-white flex items-center justify-center font-bold text-[10px] shrink-0 mb-1 shadow-2xs overflow-hidden">
-            {msg.sender?.avatar_url ? (
+            {senderAvatar ? (
               <img
-                src={msg.sender.avatar_url}
+                src={senderAvatar}
                 alt={senderName}
                 className="w-full h-full object-cover rounded-lg"
               />
@@ -547,7 +493,7 @@ export function MessageItem({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                setShowConfirmDelete(true);
+                onDeleteTrigger();
               }}
               className="p-1.5 rounded-lg bg-slate-100/90 hover:bg-rose-50 text-slate-400 hover:text-rose-600 active:text-rose-600 transition-colors shadow-2xs cursor-pointer active:scale-90 touch-manipulation"
               title="Delete message"
@@ -570,7 +516,7 @@ export function MessageItem({
             <button
               type="button"
               disabled={isDeleting}
-              onClick={handleConfirmDelete}
+              onClick={onConfirmDelete}
               className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-semibold flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition-all disabled:opacity-50 touch-manipulation"
             >
               {isDeleting ? (
@@ -581,7 +527,7 @@ export function MessageItem({
             </button>
             <button
               type="button"
-              onClick={() => setShowConfirmDelete(false)}
+              onClick={onCancelDelete}
               className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer transition-colors touch-manipulation"
               title="Cancel"
             >
@@ -649,5 +595,158 @@ export function MessageItem({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Dedicated Message Item Component
+ * Architecture:
+ * 1. Top-Level Hooks Declaration (Unconditional)
+ * 2. Explicit State & Prop Calculations (isDeleted, system, etc.)
+ * 3. Structured Branching:
+ *    ├── SystemMessage
+ *    ├── DeletedMessage
+ *    └── NormalMessage
+ */
+export function MessageItem({
+  msg,
+  isMe,
+  currentUser,
+  isGroup = false,
+  onZoom,
+  onRetryMessage,
+  onDeleteMessage,
+}) {
+  // 1. ALL Hooks declared unconditionally at the very top of the component
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Close confirmation popover on mobile/desktop when clicking outside
+  useEffect(() => {
+    if (!showConfirmDelete) return;
+    function handleOutsideClick() {
+      setShowConfirmDelete(false);
+    }
+    const timer = setTimeout(() => {
+      window.addEventListener('click', handleOutsideClick);
+      window.addEventListener('touchend', handleOutsideClick);
+    }, 50);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('click', handleOutsideClick);
+      window.removeEventListener('touchend', handleOutsideClick);
+    };
+  }, [showConfirmDelete]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!onDeleteMessage) return;
+    setIsDeleting(true);
+    try {
+      await onDeleteMessage(msg.id);
+    } finally {
+      setIsDeleting(false);
+      setShowConfirmDelete(false);
+    }
+  }, [msg.id, onDeleteMessage]);
+
+  // 2. Calculations (isDeleted, isSystem, Sender metadata)
+  const isSystem = msg.message_type === 'system';
+  const isFailed = msg.status === 'failed';
+  const isSending = msg.status === 'sending';
+
+  const isImage =
+    msg.message_type === 'image' ||
+    Boolean(msg.file_url && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(msg.file_name || ''));
+  const isPdf =
+    msg.message_type === 'pdf' ||
+    Boolean(msg.file_url && /\.pdf$/i.test(msg.file_name || ''));
+  const isFile = Boolean(msg.file_url) && !isImage && !isPdf;
+
+  const isMessageDeleted = Boolean(
+    msg.is_deleted === true ||
+    Boolean(msg.deleted_at) ||
+    (!isSystem && !isSending && !isFailed && !msg.content?.trim() && !msg.file_url)
+  );
+
+  const senderName = msg.sender?.full_name || msg.sender?.username || 'Member';
+  const senderInitial = senderName.charAt(0).toUpperCase();
+  const senderColor = getSenderColorClass(msg.sender_id || '');
+  const senderAvatar = msg.sender?.avatar_url || '';
+  const time = msg.created_at
+    ? new Date(msg.created_at).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '';
+
+  const isDeletedByMe = Boolean(
+    (msg.deleted_by && currentUser?.id && msg.deleted_by === currentUser.id) ||
+    (!msg.deleted_by && isMe)
+  );
+
+  const myDisplayName =
+    currentUser?.full_name ||
+    currentUser?.username ||
+    (currentUser?.email ? currentUser.email.split('@')[0] : '') ||
+    'You';
+
+  const otherDeleterName =
+    msg.deleted_by_profile?.full_name ||
+    msg.deleted_by_profile?.username ||
+    (msg.deleted_by_profile?.email ? msg.deleted_by_profile.email.split('@')[0] : '') ||
+    msg.sender?.full_name ||
+    msg.sender?.username ||
+    (msg.sender?.email ? msg.sender.email.split('@')[0] : '') ||
+    senderName;
+
+  const deleterName = isDeletedByMe ? myDisplayName : otherDeleterName;
+
+  // 3. Conditional Rendering Architecture
+  // Branch A: System Messages
+  if (isSystem) {
+    return <SystemMessage content={msg.content} />;
+  }
+
+  // Branch B: Deleted Messages
+  if (isMessageDeleted) {
+    return (
+      <DeletedMessage
+        isMe={isMe}
+        isGroup={isGroup}
+        senderColor={senderColor}
+        senderName={senderName}
+        senderInitial={senderInitial}
+        senderAvatar={senderAvatar}
+        deleterName={deleterName}
+        isDeletedByMe={isDeletedByMe}
+        time={time}
+      />
+    );
+  }
+
+  // Branch C: Normal Active Messages
+  return (
+    <NormalMessage
+      msg={msg}
+      isMe={isMe}
+      isGroup={isGroup}
+      senderName={senderName}
+      senderInitial={senderInitial}
+      senderColor={senderColor}
+      senderAvatar={senderAvatar}
+      time={time}
+      isFailed={isFailed}
+      isSending={isSending}
+      isImage={isImage}
+      isPdf={isPdf}
+      isFile={isFile}
+      showConfirmDelete={showConfirmDelete}
+      isDeleting={isDeleting}
+      onZoom={onZoom}
+      onRetryMessage={onRetryMessage}
+      onDeleteTrigger={() => setShowConfirmDelete(true)}
+      onConfirmDelete={handleConfirmDelete}
+      onCancelDelete={() => setShowConfirmDelete(false)}
+    />
   );
 }

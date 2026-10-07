@@ -3,7 +3,7 @@ import { updateSession } from '@/lib/supabase/middleware';
 // Routes that require an active authenticated user
 const PROTECTED_PREFIXES = ['/chat', '/dashboard', '/profile', '/settings'];
 
-export async function middleware(request) {
+export async function proxy(request) {
   const { pathname } = request.nextUrl;
   const { response, user, redirect } = await updateSession(request);
 

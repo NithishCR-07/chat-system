@@ -81,7 +81,7 @@ export function DirectChatClient({ initialUser, initialConversations = [] }) {
 
   async function handleConversationOpened(convOrId) {
     if (typeof convOrId === 'object' && convOrId !== null) {
-      handleOpenNewConversation(convOrId);
+      handleOpenNewConversation(convOrId, true, true);
     } else if (typeof convOrId === 'string') {
       await refreshConversations(convOrId);
     }

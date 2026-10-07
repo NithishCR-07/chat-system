@@ -2,7 +2,6 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useState, useEffect, useRef } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
@@ -23,7 +22,6 @@ import {
   uploadGroupAvatarAction,
   searchUsers,
 } from '@/lib/actions/chat';
-import { safeBroadcast } from '@/lib/chat/chatEngine';
 
 /**
  * High-fidelity User Avatar Badge with real avatar image support and online dot
@@ -275,22 +273,6 @@ export function NewChatModal({
         updatedAt: new Date().toISOString(),
       };
 
-      // Notify recipient over global stream
-      if (res.recipient?.id) {
-        try {
-          const supabase = createClient();
-          const globalStream = supabase.channel('global_chat_stream');
-          await safeBroadcast(globalStream, 'new_conversation_dispatch', {
-            recipientId: res.recipient.id,
-            conversationId: res.conversationId,
-            initiatorId: currentUserId,
-          });
-          supabase.removeChannel(globalStream);
-        } catch {
-          // Socket handled gracefully
-        }
-      }
-
       handleModalClose();
       if (onConversationOpened) {
         onConversationOpened(newConversation);
@@ -347,21 +329,6 @@ export function NewChatModal({
         } catch (uploadErr) {
           console.warn('Group avatar upload notice:', uploadErr);
         }
-      }
-
-      // Notify all added members across the application in real time
-      try {
-        const supabase = createClient();
-        const globalStream = supabase.channel('global_chat_stream');
-        await safeBroadcast(globalStream, 'new_conversation_dispatch', {
-          recipientIds: res.recipientIds || [],
-          conversationId: res.conversationId,
-          initiatorId: currentUserId,
-          conversation: res.conversation,
-        });
-        supabase.removeChannel(globalStream);
-      } catch {
-        // Handled gracefully
       }
 
       handleModalClose();

@@ -23,8 +23,6 @@ import {
   uploadGroupAvatarAction,
   searchUsers,
 } from '@/lib/actions/chat';
-import { createClient } from '@/lib/supabase/client';
-import { safeBroadcast } from '@/lib/chat/chatEngine';
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -281,49 +279,6 @@ export function GroupInfoModal({
             description: descInput.trim(),
             avatar_url: finalAvatarUrl,
           });
-        }
-
-        // Broadcast realtime update to all members
-        try {
-          const supabase = createClient();
-          const globalStream = supabase.channel('global_chat_stream');
-          await safeBroadcast(globalStream, 'group_profile_updated', {
-            conversationId: conversation.id,
-            name: nameInput.trim(),
-            description: descInput.trim(),
-            avatar_url: finalAvatarUrl,
-          });
-          supabase.removeChannel(globalStream);
-
-          const roomStream = supabase.channel(`room:${conversation.id}`);
-          await safeBroadcast(roomStream, 'group_profile_updated', {
-            conversationId: conversation.id,
-            name: nameInput.trim(),
-            description: descInput.trim(),
-            avatar_url: finalAvatarUrl,
-          });
-          supabase.removeChannel(roomStream);
-
-          const recipientIds =
-            res.recipientIds ||
-            participants.map((p) => p.id || p.user_id).filter((id) => id !== currentUserId);
-
-          for (const rId of recipientIds) {
-            try {
-              const userStream = supabase.channel(`user_stream:${rId}`);
-              await safeBroadcast(userStream, 'group_profile_updated', {
-                conversationId: conversation.id,
-                name: nameInput.trim(),
-                description: descInput.trim(),
-                avatar_url: finalAvatarUrl,
-              });
-              supabase.removeChannel(userStream);
-            } catch {
-              // Graceful
-            }
-          }
-        } catch {
-          // Graceful
         }
       } else {
         setError(res?.error || 'Failed to update group.');
