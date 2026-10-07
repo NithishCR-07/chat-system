@@ -174,7 +174,6 @@ function DeletedMessage({
   senderInitial,
   senderAvatar,
   deleterName,
-  isDeletedByMe,
   time,
 }) {
   return (
@@ -230,9 +229,6 @@ function DeletedMessage({
           <span className="text-xs text-slate-600 font-normal leading-snug">
             This message was deleted by{' '}
             <span className="font-semibold text-slate-900">{deleterName}</span>
-            {isDeletedByMe && (
-              <span className="text-[#1f6fb2] font-medium ml-1">(You)</span>
-            )}
           </span>
           {time && (
             <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-2 self-center">
@@ -750,7 +746,8 @@ export function MessageItem({
     currentUser?.full_name ||
     currentUser?.username ||
     (currentUser?.email ? currentUser.email.split('@')[0] : '') ||
-    'You';
+    senderName ||
+    'User';
 
   const otherDeleterName =
     msg.deleted_by_profile?.full_name ||
@@ -780,7 +777,6 @@ export function MessageItem({
         senderInitial={senderInitial}
         senderAvatar={senderAvatar}
         deleterName={deleterName}
-        isDeletedByMe={isDeletedByMe}
         time={time}
       />
     );
