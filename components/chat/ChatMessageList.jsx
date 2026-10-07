@@ -16,6 +16,7 @@ import { triggerFileDownload, getFilePreviewUrl } from '@/lib/storage/uploadMedi
 export function ChatMessageList({
   messages = [],
   currentUserId,
+  currentUser,
   recipient,
   conversation,
   isGroup = false,
@@ -139,11 +140,36 @@ export function ChatMessageList({
           </div>
         )}
 
-        {/* Initial loading state */}
+        {/* Initial loading state: High-Performance Skeleton Stream */}
         {isLoading ? (
-          <div className="flex items-center justify-center h-full text-slate-400 gap-2 text-xs">
-            <IconSpinner className="w-5 h-5 text-[#1f6fb2]" />
-            <span>Loading messages...</span>
+          <div className="space-y-4 py-2 animate-fadeIn select-none">
+            {/* Incoming skeleton message */}
+            <div className="flex items-end gap-2.5 max-w-sm">
+              <div className="w-8 h-8 rounded-xl bg-slate-200/80 animate-pulse shrink-0" />
+              <div className="space-y-1.5 flex-1">
+                <div className="h-3 w-20 bg-slate-200/60 rounded-md animate-pulse" />
+                <div className="h-10 bg-white border border-slate-200/80 rounded-2xl rounded-bl-xs p-3 shadow-2xs animate-pulse" />
+              </div>
+            </div>
+
+            {/* Outgoing skeleton message */}
+            <div className="flex justify-end">
+              <div className="h-10 w-48 bg-gradient-to-r from-[#1f6fb2]/20 to-[#2ec4b6]/20 border border-[#1f6fb2]/20 rounded-2xl rounded-br-xs animate-pulse shadow-2xs" />
+            </div>
+
+            {/* Incoming skeleton attachment */}
+            <div className="flex items-end gap-2.5 max-w-xs">
+              <div className="w-8 h-8 rounded-xl bg-slate-200/80 animate-pulse shrink-0" />
+              <div className="h-28 w-44 bg-white border border-slate-200/80 rounded-2xl rounded-bl-xs p-3 shadow-2xs animate-pulse flex flex-col justify-between">
+                <div className="h-4 w-28 bg-slate-200/60 rounded-md" />
+                <div className="h-8 bg-slate-100 rounded-xl" />
+              </div>
+            </div>
+
+            {/* Outgoing skeleton message */}
+            <div className="flex justify-end">
+              <div className="h-12 w-64 bg-gradient-to-r from-[#1f6fb2]/20 to-[#2ec4b6]/20 border border-[#1f6fb2]/20 rounded-2xl rounded-br-xs animate-pulse shadow-2xs" />
+            </div>
           </div>
         ) : messages.length > 0 ? (
           messages.map((msg) => (
@@ -151,6 +177,7 @@ export function ChatMessageList({
               key={msg.id}
               msg={msg}
               isMe={msg.sender_id === currentUserId}
+              currentUser={currentUser}
               isGroup={isGroup}
               onZoom={setLightboxImage}
               onRetryMessage={onRetryMessage}

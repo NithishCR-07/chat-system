@@ -36,6 +36,8 @@ export function ChatSidebar({
     return name.includes(q) || username.includes(q) || email.includes(q);
   });
 
+  const totalUnread = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+
   return (
     <div className="w-full bg-white border-r border-slate-200 flex flex-col shrink-0 h-full select-none">
       {/* 1. Sidebar Header */}
@@ -45,7 +47,14 @@ export function ChatSidebar({
             💬
           </div>
           <div>
-            <h1 className="font-bold text-base text-slate-900 leading-tight">Messages</h1>
+            <div className="flex items-center gap-1.5">
+              <h1 className="font-bold text-base text-slate-900 leading-tight">Messages</h1>
+              {totalUnread > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-[#1f6fb2] to-[#2ec4b6] text-white text-[10px] font-bold shadow-2xs">
+                  {totalUnread > 99 ? '99+' : totalUnread}
+                </span>
+              )}
+            </div>
             <p className="text-[11px] text-slate-400">
               {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
             </p>
@@ -82,6 +91,8 @@ export function ChatSidebar({
           filteredConversations.map((conv) => {
             const isSelected = conv.id === selectedConvId;
             const isGroup = conv.type === 'group';
+            const unreadCount = conv.unreadCount || 0;
+            const hasUnread = unreadCount > 0 && !isSelected;
 
             let title = '';
             let initial = '';
@@ -100,13 +111,21 @@ export function ChatSidebar({
 
             // Message Snippet
             let lastMsgContent = 'No messages yet';
+            const isMyLastMsg =
+              conv.lastMessage?.sender_id === currentUser?.id &&
+              conv.lastMessage?.message_type !== 'system';
+
             if (conv.lastMessage) {
               const senderPrefix =
                 isGroup && conv.lastMessage.sender_id !== currentUser?.id
                   ? `${conv.lastMessage.sender?.full_name?.split(' ')[0] || 'Member'}: `
                   : '';
 
-              if (conv.lastMessage.message_type === 'system') {
+              if (conv.lastMessage.is_deleted) {
+                lastMsgContent = isMyLastMsg
+                  ? '🚫 You deleted this message'
+                  : `${senderPrefix}🚫 This message was deleted`;
+              } else if (conv.lastMessage.message_type === 'system') {
                 lastMsgContent = conv.lastMessage.content;
               } else if (conv.lastMessage.message_type === 'image') {
                 lastMsgContent = `${senderPrefix}📷 Photo`;
@@ -119,10 +138,6 @@ export function ChatSidebar({
               }
             }
 
-            const isMyLastMsg =
-              conv.lastMessage?.sender_id === currentUser?.id &&
-              conv.lastMessage?.message_type !== 'system';
-
             return (
               <button
                 key={conv.id}
@@ -133,6 +148,8 @@ export function ChatSidebar({
                     ? isGroup
                       ? 'bg-indigo-50/80 border border-indigo-200/80 shadow-2xs'
                       : 'bg-gradient-to-r from-[#1f6fb2]/10 to-[#2ec4b6]/10 border border-[#1f6fb2]/20 shadow-2xs'
+                    : hasUnread
+                    ? 'bg-sky-50/60 hover:bg-sky-50/90 border border-sky-200/50 active:bg-sky-100'
                     : 'hover:bg-slate-50 border border-transparent active:bg-slate-100'
                 }`}
               >
@@ -186,8 +203,10 @@ export function ChatSidebar({
                         className={`font-semibold text-xs truncate ${
                           isSelected
                             ? isGroup
-                              ? 'text-indigo-700'
-                              : 'text-[#1f6fb2]'
+                              ? 'text-indigo-700 font-bold'
+                              : 'text-[#1f6fb2] font-bold'
+                            : hasUnread
+                            ? 'text-slate-900 font-bold'
                             : 'text-slate-900'
                         }`}
                       >
@@ -201,7 +220,7 @@ export function ChatSidebar({
                     </div>
 
                     {conv.lastMessage?.created_at && (
-                      <span className="text-[10px] text-slate-400 shrink-0">
+                      <span className={`text-[10px] shrink-0 font-mono ${hasUnread ? 'text-[#1f6fb2] font-bold' : 'text-slate-400'}`}>
                         {new Date(conv.lastMessage.created_at).toLocaleTimeString([], {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -218,10 +237,19 @@ export function ChatSidebar({
                     </p>
                   )}
 
-                  <p className="text-[11px] text-slate-500 truncate">
-                    {isMyLastMsg ? <span className="text-slate-400">You: </span> : ''}
-                    {lastMsgContent}
-                  </p>
+                  <div className="flex items-center justify-between gap-1.5">
+                    <p className={`text-[11px] truncate flex-1 ${hasUnread ? 'text-slate-900 font-semibold' : 'text-slate-500'}`}>
+                      {isMyLastMsg ? <span className="text-slate-400 font-normal">You: </span> : ''}
+                      {lastMsgContent}
+                    </p>
+
+                    {/* Unread Message Count Badge */}
+                    {hasUnread && (
+                      <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-gradient-to-r from-[#1f6fb2] to-[#2ec4b6] text-white text-[10px] font-bold flex items-center justify-center shadow-xs animate-in zoom-in-75 duration-150 ring-1 ring-white">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </button>
             );

@@ -10,11 +10,15 @@ export function SuccessStep({ profile }) {
   const [countdown, setCountdown] = useState(4);
   const destination = '/chat';
 
+  function handleGoToChat() {
+    router.refresh();
+    router.push(destination);
+  }
+
   // Pure countdown timer effect
   useEffect(() => {
     if (countdown <= 0) {
-      router.refresh();
-      router.push(destination);
+      handleGoToChat();
       return;
     }
 
@@ -23,7 +27,7 @@ export function SuccessStep({ profile }) {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [countdown, destination, router]);
+  }, [countdown]);
 
   const fullName = profile?.full_name || 'there';
   const username = profile?.username ? `@${profile.username}` : '';
@@ -75,10 +79,7 @@ export function SuccessStep({ profile }) {
           type="button"
           size="lg"
           className="w-full"
-          onClick={() => {
-            router.refresh();
-            router.push(destination);
-          }}
+          onClick={handleGoToChat}
           icon={IconArrowRight}
         >
           Open Chat ({countdown}s)

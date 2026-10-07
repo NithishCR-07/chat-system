@@ -36,9 +36,9 @@ export function LoginForm({ onSwitchToRegister, initialEmail = '' }) {
       formData.append('password', password);
 
       const res = await loginUser(formData);
-      setIsLoading(false);
 
       if (!res.success) {
+        setIsLoading(false);
         toast.error(res.error || 'Invalid email or password.');
         return;
       }
@@ -49,6 +49,7 @@ export function LoginForm({ onSwitchToRegister, initialEmail = '' }) {
         router.refresh();
         router.push('/chat');
       } else {
+        setIsLoading(false);
         onSwitchToRegister({
           email,
           user: res.user,

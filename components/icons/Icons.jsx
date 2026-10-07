@@ -334,5 +334,15 @@ export function IconSettings({ className = 'w-4 h-4' }) {
   );
 }
 
+export function IconBan({ className = 'w-4 h-4' }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+      <circle cx="12" cy="12" r="9" />
+      <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+
 
 

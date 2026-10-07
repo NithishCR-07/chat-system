@@ -18,6 +18,11 @@ const GroupInfoModal = dynamic(
   { ssr: false }
 );
 
+const UserProfileModal = dynamic(
+  () => import('./UserProfileModal').then((mod) => mod.UserProfileModal),
+  { ssr: false }
+);
+
 const ProfileSettingsModal = dynamic(
   () => import('./ProfileSettingsModal').then((mod) => mod.ProfileSettingsModal),
   { ssr: false }
@@ -34,6 +39,7 @@ export function DirectChatClient({ initialUser, initialConversations = [] }) {
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [newChatTab, setNewChatTab] = useState('direct'); // 'direct' | 'group'
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
+  const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [isProfileSettingsOpen, setIsProfileSettingsOpen] = useState(false);
 
   const {
@@ -89,6 +95,10 @@ export function DirectChatClient({ initialUser, initialConversations = [] }) {
   let avatarInitial = 'C';
   let isOnline = false;
 
+  const resolvedAvatarUrl = isGroup
+    ? activeConversation?.avatar_url
+    : (activeRecipient?.avatar_url || activeConversation?.recipient?.avatar_url || '');
+
   if (isGroup) {
     chatTitle = activeConversation?.name || 'Group Chat';
     const groupMembers = activeParticipants?.length > 0 ? activeParticipants : (activeConversation?.participants || []);
@@ -111,6 +121,14 @@ export function DirectChatClient({ initialUser, initialConversations = [] }) {
     chatTitle = activeConversation.name || 'Chat';
     chatSubtitle = activeConversation.type === 'group' ? 'Group Chat' : 'Direct Chat';
     avatarInitial = chatTitle.charAt(0).toUpperCase();
+  }
+
+  function handleHeaderClick() {
+    if (isGroup) {
+      setIsGroupInfoOpen(true);
+    } else if (activeRecipient) {
+      setIsUserProfileOpen(true);
+    }
   }
 
   return (
@@ -155,20 +173,21 @@ export function DirectChatClient({ initialUser, initialConversations = [] }) {
 
                 {/* Avatar with Click to View Info */}
                 <div
-                  className={`relative shrink-0 ${isGroup ? 'cursor-pointer' : ''}`}
-                  onClick={() => isGroup && setIsGroupInfoOpen(true)}
+                  className="relative shrink-0 cursor-pointer group/avatar"
+                  onClick={handleHeaderClick}
+                  title={isGroup ? 'View Group Info' : 'View Contact Profile'}
                 >
                   <div
-                    className={`w-10 h-10 rounded-xl ${
+                    className={`w-10 h-10 rounded-xl overflow-hidden ${
                       isGroup
                         ? 'bg-gradient-to-tr from-[#6366f1] to-[#3b82f6]'
                         : 'bg-gradient-to-tr from-[#1f6fb2] to-[#2ec4b6]'
-                    } text-white flex items-center justify-center font-bold text-sm shadow-xs`}
+                    } text-white flex items-center justify-center font-bold text-sm shadow-xs transition-transform group-hover/avatar:scale-105`}
                   >
-                    {activeConversation?.avatar_url ? (
+                    {resolvedAvatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={activeConversation.avatar_url}
+                        src={resolvedAvatarUrl}
                         alt={chatTitle}
                         className="w-full h-full object-cover rounded-xl"
                       />
@@ -194,8 +213,9 @@ export function DirectChatClient({ initialUser, initialConversations = [] }) {
 
                 {/* Title and Subtitle */}
                 <div
-                  className={`min-w-0 ${isGroup ? 'cursor-pointer' : ''}`}
-                  onClick={() => isGroup && setIsGroupInfoOpen(true)}
+                  className="min-w-0 cursor-pointer"
+                  onClick={handleHeaderClick}
+                  title={isGroup ? 'View Group Info' : 'View Contact Profile'}
                 >
                   <h2 className="font-bold text-sm text-slate-900 leading-tight truncate hover:text-[#1f6fb2] transition-colors">
                     {chatTitle}
@@ -219,10 +239,15 @@ export function DirectChatClient({ initialUser, initialConversations = [] }) {
                     <span className="hidden sm:inline">Group Info</span>
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2 text-xs text-emerald-600 font-medium bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/60 shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    <span>Direct Chat</span>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsUserProfileOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+                    title="View Profile"
+                  >
+                    <IconInfo className="w-3.5 h-3.5 text-[#1f6fb2]" />
+                    <span className="hidden sm:inline">Profile</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -231,6 +256,7 @@ export function DirectChatClient({ initialUser, initialConversations = [] }) {
             <ChatMessageList
               messages={messages}
               currentUserId={currentUserId}
+              currentUser={currentUser}
               recipient={activeRecipient}
               conversation={activeConversation}
               isGroup={isGroup}
@@ -307,6 +333,16 @@ export function DirectChatClient({ initialUser, initialConversations = [] }) {
           onlineUserIds={onlineUserIds}
           onGroupUpdated={handleGroupUpdated}
           onLeaveGroup={handleLeaveGroup}
+        />
+      )}
+
+      {/* Direct User Profile Modal */}
+      {!isGroup && activeRecipient && (
+        <UserProfileModal
+          isOpen={isUserProfileOpen}
+          onClose={() => setIsUserProfileOpen(false)}
+          recipient={activeRecipient}
+          isOnline={isOnline}
         />
       )}
 
