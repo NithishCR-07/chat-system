@@ -17,6 +17,10 @@
 /.next/
 /out/
 
+# Supabase schema and database files
+/supabase/
+
+
 # production
 /build
 
