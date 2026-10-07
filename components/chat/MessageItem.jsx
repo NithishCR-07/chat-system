@@ -1,7 +1,8 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   IconSpinner,
   IconSingleCheck,
@@ -245,6 +246,103 @@ function DeletedMessage({
 }
 
 /**
+ * 2.5. Universal Portal-Mounted Modal Dialog for Delete Confirmation
+ * Responsive: Sleek bottom action sheet on mobile (<640px) & centered modal card on tablet/desktop (>=640px)
+ */
+function DeleteConfirmationModal({
+  isOpen,
+  isDeleting,
+  onConfirmDelete,
+  onCancelDelete,
+}) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  // Keyboard accessibility: Escape key to dismiss
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && !isDeleting) {
+        onCancelDelete();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isDeleting, onCancelDelete]);
+
+  if (!isOpen || !mounted || typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-dialog-title"
+      className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-150 touch-manipulation pointer-events-auto select-none"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isDeleting) {
+          onCancelDelete();
+        }
+      }}
+    >
+      <div
+        className="w-full max-w-sm bg-white rounded-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 border border-slate-100 select-none relative z-[10000] pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex flex-col items-center text-center space-y-2 pt-1">
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shadow-inner">
+            <IconTrash className="w-6 h-6" />
+          </div>
+          <h3 id="delete-dialog-title" className="font-bold text-base text-slate-900">
+            Delete Message?
+          </h3>
+          <p className="text-xs text-slate-500 leading-relaxed max-w-xs">
+            This message will be deleted for everyone in this chat. This action cannot be undone.
+          </p>
+        </div>
+
+        <div className="space-y-2 pt-2">
+          <button
+            type="button"
+            disabled={isDeleting}
+            onClick={(e) => {
+              e.stopPropagation();
+              onConfirmDelete();
+            }}
+            className="w-full py-3.5 rounded-2xl sm:rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-rose-600/25 cursor-pointer active:scale-98 transition-all disabled:opacity-50 touch-manipulation select-none"
+          >
+            {isDeleting ? (
+              <>
+                <IconSpinner className="w-4 h-4 animate-spin" />
+                <span>Deleting message...</span>
+              </>
+            ) : (
+              <span>Delete for Everyone</span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            disabled={isDeleting}
+            onClick={(e) => {
+              e.stopPropagation();
+              onCancelDelete();
+            }}
+            className="w-full py-3 rounded-2xl sm:rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold text-sm transition-all cursor-pointer touch-manipulation select-none"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/**
  * 3. Normal Active Message Subcomponent
  */
 function NormalMessage({
@@ -318,8 +416,8 @@ function NormalMessage({
             className={`max-w-xs sm:max-w-sm md:max-w-md rounded-2xl p-3 shadow-xs transition-all ${
               isMe
                 ? isFailed
-                  ? 'bg-rose-500 text-white rounded-br-xs'
-                  : 'bg-gradient-to-r from-[#1f6fb2] to-[#2ec4b6] text-white rounded-br-xs'
+                ? 'bg-rose-500 text-white rounded-br-xs'
+                : 'bg-gradient-to-r from-[#1f6fb2] to-[#2ec4b6] text-white rounded-br-xs'
                 : 'bg-white border border-slate-200 text-slate-800 rounded-bl-xs'
             }`}
           >
@@ -406,8 +504,8 @@ function NormalMessage({
             className={`max-w-xs sm:max-w-sm md:max-w-md rounded-2xl p-3 shadow-xs transition-all ${
               isMe
                 ? isFailed
-                  ? 'bg-rose-500 text-white rounded-br-xs'
-                  : 'bg-gradient-to-r from-[#1f6fb2] to-[#2ec4b6] text-white rounded-br-xs'
+                ? 'bg-rose-500 text-white rounded-br-xs'
+                : 'bg-gradient-to-r from-[#1f6fb2] to-[#2ec4b6] text-white rounded-br-xs'
                 : 'bg-white border border-slate-200 text-slate-800 rounded-bl-xs'
             }`}
           >
@@ -487,7 +585,7 @@ function NormalMessage({
         )}
 
         {/* Delete Action Trigger (Visible on mobile/tablets, hover on desktop) */}
-        {isMe && !isSending && !showConfirmDelete && (
+        {isMe && !isSending && (
           <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity duration-150 shrink-0 self-center">
             <button
               type="button"
@@ -504,37 +602,13 @@ function NormalMessage({
           </div>
         )}
 
-        {/* Inline Confirmation Popover: Delete for everyone? */}
-        {showConfirmDelete && (
-          <div
-            className="absolute top-0 right-0 z-30 bg-white border border-slate-200 rounded-xl shadow-xl p-2 md:p-2.5 flex items-center gap-2 animate-in fade-in zoom-in-95 duration-150 max-w-[90vw]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span className="text-[11px] font-medium text-slate-700 whitespace-nowrap">
-              Delete message?
-            </span>
-            <button
-              type="button"
-              disabled={isDeleting}
-              onClick={onConfirmDelete}
-              className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-semibold flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition-all disabled:opacity-50 touch-manipulation"
-            >
-              {isDeleting ? (
-                <IconSpinner className="w-3 h-3" />
-              ) : (
-                <span>Delete</span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={onCancelDelete}
-              className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer transition-colors touch-manipulation"
-              title="Cancel"
-            >
-              <IconX className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+        {/* Universal Portal-Mounted Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+          isOpen={showConfirmDelete}
+          isDeleting={isDeleting}
+          onConfirmDelete={onConfirmDelete}
+          onCancelDelete={onCancelDelete}
+        />
       </div>
 
       {/* Meta info & Delivery status */}
@@ -621,33 +695,21 @@ export function MessageItem({
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Close confirmation popover on mobile/desktop when clicking outside
-  useEffect(() => {
-    if (!showConfirmDelete) return;
-    function handleOutsideClick() {
-      setShowConfirmDelete(false);
-    }
-    const timer = setTimeout(() => {
-      window.addEventListener('click', handleOutsideClick);
-      window.addEventListener('touchend', handleOutsideClick);
-    }, 50);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('click', handleOutsideClick);
-      window.removeEventListener('touchend', handleOutsideClick);
-    };
-  }, [showConfirmDelete]);
-
-  const handleConfirmDelete = useCallback(async () => {
-    if (!onDeleteMessage) return;
-    setIsDeleting(true);
-    try {
-      await onDeleteMessage(msg.id);
-    } finally {
-      setIsDeleting(false);
-      setShowConfirmDelete(false);
-    }
-  }, [msg.id, onDeleteMessage]);
+  const handleConfirmDelete = useCallback(
+    async () => {
+      if (!onDeleteMessage || isDeleting) return;
+      setIsDeleting(true);
+      try {
+        await onDeleteMessage(msg.id);
+      } catch (err) {
+        console.error('Delete message error:', err);
+      } finally {
+        setIsDeleting(false);
+        setShowConfirmDelete(false);
+      }
+    },
+    [msg.id, onDeleteMessage, isDeleting]
+  );
 
   // 2. Calculations (isDeleted, isSystem, Sender metadata)
   const isSystem = msg.message_type === 'system';
